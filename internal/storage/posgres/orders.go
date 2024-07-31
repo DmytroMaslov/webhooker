@@ -90,7 +90,7 @@ func (o *OrderStorage) SaveOrder(order *models.Order) error {
 	return nil
 }
 
-func (o *OrderStorage) UpdateOrder(order *models.Order) (*models.Order, error) {
+func (o *OrderStorage) UpdateOrder(order *models.Order) error {
 	query := `UPDATE Orders
 	SET OrderID = $1, UserId = $2, OrderStatus = $3, IsFinal = $4, CreateAt = $5, UpdateAt = $6 
 	WHERE OrderID = $1`
@@ -98,24 +98,11 @@ func (o *OrderStorage) UpdateOrder(order *models.Order) (*models.Order, error) {
 	var orderRow OrderRow
 	orderRow.OrderRowFromOrder(order)
 
-	rows, err := o.db.Query(query, orderRow.OrderID, orderRow.UserID, orderRow.OrderStatus, orderRow.IsFinal, orderRow.CreateAt, orderRow.UpdateAt)
+	_, err := o.db.Exec(query, orderRow.OrderID, orderRow.UserID, orderRow.OrderStatus, orderRow.IsFinal, orderRow.CreateAt, orderRow.UpdateAt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query update order, err: %w", err)
+		return fmt.Errorf("failed to exec update order, err: %w", err)
 	}
-	defer rows.Close()
-
-	var updatedOrderRow OrderRow
-	for rows.Next() {
-		// TODO: retest
-		err := rows.Scan(&updatedOrderRow)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan updated order row %w", err)
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to run update order query: %w", err)
-	}
-	return orderRow.OrderRowToOrder(), nil
+	return nil
 }
 
 func (o *OrderStorage) GetOrders(filter *models.OrderFilter) ([]*models.Order, error) {

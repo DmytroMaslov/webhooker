@@ -7,7 +7,6 @@ import (
 	"webhooker/config"
 	"webhooker/internal/services/models"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,15 +60,12 @@ func Test_Orders(t *testing.T) {
 
 	order.IsFinal = true
 
-	updated, err := s.UpdateOrder(order)
+	err = s.UpdateOrder(order)
 	require.Nil(t, err)
-	assert.NotEmpty(t, updated)
-	fmt.Printf("updated: %+v\n", updated)
 
 	get, err := s.GetOrder(order.ID)
 	require.Nil(t, err)
 	fmt.Printf("get: %+v\n", get)
-	t.Fail()
 }
 
 func Test_Orders_Get(t *testing.T) {
