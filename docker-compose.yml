@@ -1,0 +1,18 @@
+version: "3.4"
+
+services:
+  # PostgreSQL container
+  postgresdb:
+    image: postgres:11.5-alpine
+    container_name: webhookerdb
+    restart: always
+    hostname: postgres
+    environment:
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASS}
+      POSTGRES_DB: ${PG_DB_NAME}
+    volumes:
+      - ./VOLUMES/postgresdb/:/var/lib/postgresql/data/
+      - ./scripts/webhookerdb_init/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - 5432:5432
