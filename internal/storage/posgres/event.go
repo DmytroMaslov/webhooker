@@ -69,3 +69,34 @@ func (e *EventStorage) SaveEvent(event *models.Event) error {
 	}
 	return nil
 }
+
+func (e *EventStorage) GetEvents(filter *models.EventsFilter) ([]*models.Event, error) {
+	query := `SELECT EventID, OrderID, UserID, OrderStatus, CreateAt, UpdateAt 
+	FROM JustPayEvents`
+
+	if filter.OrderID != nil {
+		whereStmt := fmt.Sprintf("OrderID = '%s'", *filter.OrderID)
+		query = addWhere(query, whereStmt)
+	}
+
+	rows, err := e.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query events %w", err)
+	}
+
+	var events []*models.Event
+
+	for rows.Next() {
+		var eventRow EventRow
+		err := rows.Scan(&eventRow.EventID, &eventRow.OrderID, &eventRow.UserID, &eventRow.OrderStatus, &eventRow.CreateAt, &eventRow.UpdateAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan event row %w", err)
+		}
+		events = append(events, eventRow.EventRowToEvent())
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to run get events query: %w", err)
+	}
+
+	return events, nil
+}

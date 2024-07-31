@@ -17,3 +17,7 @@ type Event struct {
 	CreateAt    time.Time
 	UpdateAt    time.Time
 }
+
+type EventsFilter struct {
+	OrderID *string
+}
