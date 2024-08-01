@@ -7,6 +7,7 @@ import (
 	"webhooker/config"
 	"webhooker/internal/services/models"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +23,7 @@ func Test_SaveEvent(t *testing.T) {
 	require.Nil(t, err)
 
 	event := &models.Event{
-		EventID:     "97a96c29-7631-4cbc-9559-f8866fb03392",
+		EventID:     "87a96c29-7631-4cbc-9559-f8866fb03392",
 		UserID:      "2c127d70-3b9b-4743-9c2e-74b9f617029f",
 		OrderID:     "2c127d70-3b9b-4743-9c2e-74b9f617029f",
 		OrderStatus: "test",
@@ -31,8 +32,15 @@ func Test_SaveEvent(t *testing.T) {
 	}
 
 	err = s.SaveEvent(event)
-	err = s.SaveEvent(event)
 	require.Nil(t, err)
+
+	got, err := s.GetEvents(&models.EventsFilter{
+		OrderID: &event.OrderID,
+	})
+	require.Nil(t, err)
+	assert.Len(t, got, 1)
+	assert.NotEmpty(t, *got[0])
+
 }
 
 func Test_Orders(t *testing.T) {

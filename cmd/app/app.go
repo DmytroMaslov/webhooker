@@ -31,8 +31,9 @@ func (a *App) Run() {
 	}
 
 	streamService := services.NewStreamService(eventStorage, orderStorage)
+	orderService := services.NewOrderService(orderStorage)
 
-	webhookHandler := handlers.NewHandler(streamService)
+	webhookHandler := handlers.NewHandler(streamService, orderService)
 
 	server := api.NewHttpServer(8080, webhookHandler.GetHandlers())
 
