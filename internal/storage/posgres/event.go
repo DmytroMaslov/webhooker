@@ -79,6 +79,11 @@ func (e *EventStorage) GetEvents(filter *models.EventsFilter) ([]*models.Event, 
 		query = addWhere(query, whereStmt)
 	}
 
+	if filter.EventID != nil {
+		whereStmt := fmt.Sprintf("EventID = '%s'", *filter.EventID)
+		query = addWhere(query, whereStmt)
+	}
+
 	rows, err := e.db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query events %w", err)

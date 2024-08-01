@@ -20,4 +20,5 @@ type Event struct {
 
 type EventsFilter struct {
 	OrderID *string
+	EventID *string
 }
