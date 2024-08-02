@@ -10,6 +10,8 @@ import (
 	"webhooker/api"
 	"webhooker/api/handlers"
 	"webhooker/config"
+	"webhooker/internal/queue/inmemory"
+	"webhooker/internal/schedule/delay"
 	"webhooker/internal/services"
 	"webhooker/internal/storage/posgres"
 )
@@ -30,7 +32,11 @@ func (a *App) Run() {
 		log.Fatal("failed to create event storage: %w", err)
 	}
 
-	streamService := services.NewStreamService(eventStorage, orderStorage)
+	broker := inmemory.NewBroker()
+
+	delay := delay.NewDelay()
+
+	streamService := services.NewStreamService(eventStorage, orderStorage, broker, delay)
 	orderService := services.NewOrderService(orderStorage)
 
 	webhookHandler := handlers.NewHandler(streamService, orderService)
@@ -47,15 +53,25 @@ func (a *App) Run() {
 
 	<-exit
 
+	broker.Close()
+
 	// shout down logic
 	err = server.Shutdown(context.Background())
 	if err != nil {
 		log.Printf("failed to stop server, err: %s", err)
 	}
 
+	<-delay.GracefulExit()
+
 	err = eventStorage.Close()
 	if err != nil {
 		log.Printf("failed to close connection, err: %s", err)
 	}
+
+	err = orderStorage.Close()
+	if err != nil {
+		log.Printf("failed to close connection, err: %s", err)
+	}
+
 	log.Printf("See you\n")
 }

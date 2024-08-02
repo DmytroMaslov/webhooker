@@ -7,6 +7,7 @@ import (
 
 var (
 	ErrAlreadyExist = errors.New("row already exist")
+	ErrAfterFinal   = errors.New("order in final state")
 )
 
 type Event struct {
@@ -14,6 +15,7 @@ type Event struct {
 	OrderID     string
 	UserID      string
 	OrderStatus string
+	IsFinal     bool
 	CreateAt    time.Time
 	UpdateAt    time.Time
 }
