@@ -36,16 +36,13 @@ func NewStreamService(event *posgres.EventStorage, order *posgres.OrderStorage, 
 }
 
 func (s *StreamService) SaveEvent(event *models.Event) error {
-	if _, ok := models.ValidStatuses[event.OrderStatus]; !ok {
-		return fmt.Errorf("invalid status")
+	if _, ok := models.StatusPriority[event.OrderStatus]; !ok {
+		return fmt.Errorf("unsupported status")
 	}
 
 	order, err := s.orderStorage.GetOrder(event.OrderID)
 	if err != nil {
 		return err
-	}
-	if order.IsFinal {
-		return models.ErrAfterFinal
 	}
 
 	events, err := s.eventStorage.GetEvents(&models.EventsFilter{OrderID: &event.OrderID})
@@ -59,13 +56,38 @@ func (s *StreamService) SaveEvent(event *models.Event) error {
 		}
 	}
 
+	if event.OrderStatus == models.PendingStatus || event.OrderStatus == models.ConfirmedStatus {
+		doneEvent := searchEventByStatus(events, models.DoneStatus)
+		if doneEvent != nil && event.UpdateAt.After(doneEvent.UpdateAt) {
+			return models.ErrAfterFinal
+		}
+
+		refundEvent := searchEventByStatus(events, models.RefundStatus)
+		if refundEvent != nil {
+			return models.ErrAfterFinal
+		}
+
+		failedEvent := searchEventByStatus(events, models.FailedStatus)
+		if failedEvent != nil {
+			return models.ErrAfterFinal
+		}
+	}
+
 	if event.OrderStatus == models.ReturnStatus || event.OrderStatus == models.FailedStatus {
+		// check if order in final state
+		if order.IsFinal {
+			return models.ErrAfterFinal
+		}
+
+		// check if order already has done status
 		for _, e := range events {
 			if e.OrderStatus == models.DoneStatus {
 				return models.ErrAfterFinal
 			}
 		}
-		event.IsFinal = true
+		order.IsFinal = true
+		order.Status = event.OrderStatus
+		order.UpdateAt = event.UpdateAt
 	}
 
 	if event.OrderStatus == models.DoneStatus {
@@ -77,7 +99,10 @@ func (s *StreamService) SaveEvent(event *models.Event) error {
 		doneEvent := searchEventByStatus(events, models.DoneStatus)
 
 		if doneEvent != nil && event.UpdateAt.Sub(doneEvent.UpdateAt) < cooldownTime {
-			event.IsFinal = true
+			order.IsFinal = true
+			order.Status = event.OrderStatus
+			order.UpdateAt = event.UpdateAt
+
 			s.delay.Cancel(event.OrderID)
 		} else {
 			return models.ErrAfterFinal
@@ -98,6 +123,13 @@ func (s *StreamService) process(event *models.Event, order *models.Order) error 
 		return fmt.Errorf("failed to process err %w", err)
 	}
 
+	// update order only if priority of new event higher than event in order
+	// for example we can receive DoneStatus and after than PendingStatus
+
+	if models.StatusPriority[event.OrderStatus] < models.StatusPriority[order.Status] {
+		return nil
+	}
+
 	// save new order
 	if order.ID == "" {
 		err := s.orderStorage.SaveOrder(&models.Order{
@@ -114,12 +146,12 @@ func (s *StreamService) process(event *models.Event, order *models.Order) error 
 	} else {
 		// update existing one
 		err := s.orderStorage.UpdateOrder(&models.Order{
-			ID:       event.OrderID,
-			UserID:   event.UserID,
-			Status:   event.OrderStatus,
-			IsFinal:  event.IsFinal,
-			CreateAt: event.CreateAt,
-			UpdateAt: event.UpdateAt,
+			ID:       order.ID,
+			UserID:   order.UserID,
+			Status:   order.Status,
+			IsFinal:  order.IsFinal,
+			CreateAt: order.CreateAt,
+			UpdateAt: order.UpdateAt,
 		})
 		if err != nil {
 			return err
