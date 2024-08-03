@@ -12,14 +12,14 @@ const (
 	RefundStatus       = "give_my_money_back"
 )
 
-var ValidStatuses = map[string]bool{
-	OrderCreatedStatus: true,
-	PendingStatus:      true,
-	ConfirmedStatus:    true,
-	ReturnStatus:       true,
-	FailedStatus:       true,
-	DoneStatus:         true,
-	RefundStatus:       true,
+var StatusPriority = map[string]int{
+	OrderCreatedStatus: 0,
+	PendingStatus:      1,
+	ConfirmedStatus:    2,
+	ReturnStatus:       3,
+	FailedStatus:       4,
+	DoneStatus:         5,
+	RefundStatus:       6,
 }
 
 type Order struct {
