@@ -133,7 +133,7 @@ func (s *WebhookService) process(event *models.Event, order *models.Order) error
 			ID:       event.OrderID,
 			UserID:   event.UserID,
 			Status:   event.OrderStatus,
-			IsFinal:  event.IsFinal,
+			IsFinal:  order.IsFinal,
 			CreateAt: event.CreateAt,
 			UpdateAt: event.UpdateAt,
 		})

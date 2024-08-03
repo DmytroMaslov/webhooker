@@ -17,31 +17,41 @@ func (h *Handlers) StreamEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, ok := w.(http.Flusher)
+	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
 		return
 	}
 
-	stream, err := h.stream.GetEventStream(orderId)
-	if err != nil {
-		http.Error(w, "failed get stream", http.StatusInternalServerError)
-		return
-	}
+	ctx := r.Context()
 
-	eventCh := stream.Stream()
+	eventCh, done, errCh := h.stream.GetEventStream(orderId)
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	for event := range eventCh {
-		eventResp := eventToEventResp(event)
-		jsonData, _ := json.Marshal(eventResp)
-		log.Printf("data: %s\n\n", jsonData)
-		fmt.Fprintf(w, "data: %s\n\n", jsonData)
-		w.(http.Flusher).Flush()
+	for {
+		select {
+		case event := <-eventCh:
+			eventResp := eventToEventResp(event)
+			jsonData, _ := json.Marshal(eventResp)
+			log.Printf(">>> StreamEvents. [%s] data: %s\n\n", event.OrderStatus, jsonData)
+			fmt.Fprintf(w, "data: %s\n\n", jsonData)
+			flusher.Flush()
+		case <-done:
+			log.Printf("(!) StreamEvents. close connection\n")
+			return
+		case err := <-errCh:
+			log.Printf("(!) StreamEvents. failed to get events stream, err: %s\n", err.Error())
+			http.Error(w, "failed to get events stream", http.StatusInternalServerError)
+			return
+		case <-ctx.Done():
+			// TODO: stop event stream if user close conn
+			log.Printf("(!) StreamEvents. close connection by client\n")
+			return
+		}
 	}
 }
 
