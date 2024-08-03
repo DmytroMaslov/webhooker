@@ -36,12 +36,12 @@ func (a *App) Run() {
 
 	delay := delay.NewDelay()
 
-	streamService := services.NewStreamService(eventStorage, orderStorage, broker, delay)
+	webhookService := services.NewWebhookService(eventStorage, orderStorage, broker, delay)
 	orderService := services.NewOrderService(orderStorage)
 
-	webhookHandler := handlers.NewHandler(streamService, orderService)
+	handlers := handlers.NewHandler(webhookService, orderService)
 
-	server := api.NewHttpServer(8080, webhookHandler.GetHandlers())
+	server := api.NewHttpServer(8080, handlers.GetHandlers())
 
 	err = server.Serve()
 	if err != nil {

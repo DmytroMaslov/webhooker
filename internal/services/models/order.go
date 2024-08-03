@@ -3,6 +3,8 @@ package models
 import "time"
 
 const (
+	CooldownTime = 30 * time.Second
+
 	OrderCreatedStatus = "cool_order_created"
 	PendingStatus      = "sbu_verification_pending"
 	ConfirmedStatus    = "confirmed_by_mayor"
