@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -127,6 +128,11 @@ func (h *Handlers) GetOrders(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "provide only isFinal or only Status", http.StatusBadRequest)
 			return
 		}
+		if errors.Is(err, services.ErrUnsupportedStatus) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		log.Printf("failed to get orders err: %s", err.Error())
 		http.Error(w, "error", http.StatusInternalServerError)
 		return
 	}

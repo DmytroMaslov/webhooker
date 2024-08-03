@@ -119,7 +119,7 @@ func (o *OrderStorage) GetOrders(filter *models.OrderFilter) ([]*models.Order, e
 			}
 		}
 
-		whereStmt := fmt.Sprintf("WHERE OrderStatus IN (%s)", statuses)
+		whereStmt := fmt.Sprintf("OrderStatus IN (%s)", statuses)
 		query = addWhere(query, whereStmt)
 	}
 
@@ -165,7 +165,7 @@ func (o *OrderStorage) GetOrders(filter *models.OrderFilter) ([]*models.Order, e
 
 	rows, err := o.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query orders %w", err)
+		return nil, fmt.Errorf("failed to query %s, err: %w", query, err)
 	}
 
 	var orders []*models.Order

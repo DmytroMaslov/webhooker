@@ -17,12 +17,12 @@ func NewOrderService(order *posgres.OrderStorage) *OrderService {
 }
 
 var (
-	ErrFilterStatus    = errors.New("provide isFinal or Status")
-	ErrOnlyOneRequired = errors.New("only isFinal or Status required")
+	ErrFilterStatus      = errors.New("provide isFinal or Status")
+	ErrOnlyOneRequired   = errors.New("only isFinal or Status required")
+	ErrUnsupportedStatus = errors.New("unsupported status")
 )
 
 func (s *OrderService) GetOrders(filter *models.OrderFilter) ([]*models.Order, error) {
-	// TODO: validate statuses
 	if filter.IsFinal == nil && filter.Status == nil {
 		return nil, ErrFilterStatus
 	}
@@ -47,6 +47,13 @@ func (s *OrderService) GetOrders(filter *models.OrderFilter) ([]*models.Order, e
 	sortOrder := defaultSortOrder
 	if filter.SortOrder != nil {
 		sortOrder = *filter.SortOrder
+	}
+
+	for _, s := range filter.Status {
+		_, ok := models.StatusPriority[s]
+		if !ok {
+			return nil, ErrUnsupportedStatus
+		}
 	}
 
 	orderFilter := &models.OrderFilter{
