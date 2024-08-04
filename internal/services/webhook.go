@@ -82,13 +82,11 @@ func (s *WebhookService) SaveEvent(event *models.Event) error {
 				return models.ErrAfterFinal
 			}
 		}
-		order.IsFinal = true
-		order.Status = event.OrderStatus
-		order.UpdateAt = event.UpdateAt
+		event.IsFinal = true
 	}
 
 	if event.OrderStatus == models.DoneStatus {
-		s.changeStatusToFinal(event.OrderID)
+		s.processWithDelay(event)
 	}
 
 	if event.OrderStatus == models.RefundStatus {
@@ -96,9 +94,7 @@ func (s *WebhookService) SaveEvent(event *models.Event) error {
 		doneEvent := searchEventByStatus(events, models.DoneStatus)
 
 		if doneEvent != nil && event.UpdateAt.Sub(doneEvent.UpdateAt) < models.CooldownTime {
-			order.IsFinal = true
-			order.Status = event.OrderStatus
-			order.UpdateAt = event.UpdateAt
+			event.IsFinal = true
 
 			s.delay.Cancel(event.OrderID)
 		} else {
@@ -133,7 +129,7 @@ func (s *WebhookService) process(event *models.Event, order *models.Order) error
 			ID:       event.OrderID,
 			UserID:   event.UserID,
 			Status:   event.OrderStatus,
-			IsFinal:  order.IsFinal,
+			IsFinal:  event.IsFinal,
 			CreateAt: event.CreateAt,
 			UpdateAt: event.UpdateAt,
 		})
@@ -145,10 +141,10 @@ func (s *WebhookService) process(event *models.Event, order *models.Order) error
 		err := s.orderStorage.UpdateOrder(&models.Order{
 			ID:       order.ID,
 			UserID:   order.UserID,
-			Status:   order.Status,
-			IsFinal:  order.IsFinal,
+			Status:   event.OrderStatus,
+			IsFinal:  event.IsFinal,
 			CreateAt: order.CreateAt,
-			UpdateAt: order.UpdateAt,
+			UpdateAt: event.UpdateAt,
 		})
 		if err != nil {
 			return err
@@ -158,32 +154,34 @@ func (s *WebhookService) process(event *models.Event, order *models.Order) error
 	return nil
 }
 
-func (s *WebhookService) changeStatusToFinal(orderID string) {
+func (s *WebhookService) processWithDelay(event *models.Event) {
 	fn := func() {
-		order, err := s.orderStorage.GetOrder(orderID)
+		order, err := s.orderStorage.GetOrder(event.OrderID)
 		if err != nil {
-			log.Printf("failed to change order status after cooldown, orderID %s, err:%s", orderID, err.Error())
+			log.Printf("failed to change order status after cooldown, orderID %s, err:%s", event.OrderID, err.Error())
 			return
 		}
 		if order.IsFinal {
 			return
 		}
+		// publish chinazes in final state
+		event.IsFinal = true
+		s.broker.Publish(event.OrderID, event)
+
+		// update order in db
 		order.IsFinal = true
 		err = s.orderStorage.UpdateOrder(order)
 		if err != nil {
-			log.Printf("failed to update order after cooldown, orderID %s, err:%s", orderID, err.Error())
+			log.Printf("failed to update order after cooldown, orderID %s, err:%s", event.OrderID, err.Error())
 		}
-		log.Printf("change order_id: %s to final", orderID)
+
+		// update chinazes to final state
+		err = s.eventStorage.UpdateEvent(event)
+		if err != nil {
+			log.Printf("failed to update event after cooldown, eventID %s, err:%s", event.EventID, err.Error())
+		}
+		log.Printf("change order_id: %s and event_id: %s to final", event.EventID, event.OrderID)
 	}
 
-	go s.delay.AddJobFn(orderID, fn, models.CooldownTime)
-}
-
-func searchEventByStatus(events []*models.Event, status string) *models.Event {
-	for _, event := range events {
-		if event.OrderStatus == status {
-			return event
-		}
-	}
-	return nil
+	go s.delay.AddJobFn(event.OrderID, fn, models.CooldownTime)
 }
