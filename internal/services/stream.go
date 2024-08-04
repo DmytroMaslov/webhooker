@@ -78,6 +78,7 @@ func (s *WebhookService) GetEventStream(ctx context.Context, orderId string) (ch
 				doneCh <- true
 				return
 			case <-ctx.Done():
+				doneCh <- true
 				return
 			}
 		}
