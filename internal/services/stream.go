@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sort"
@@ -30,7 +31,7 @@ func NewStreamService(event *posgres.EventStorage, order *posgres.OrderStorage, 
 	}
 }
 
-func (s *WebhookService) GetEventStream(orderId string) (chan *models.Event, chan bool, chan error) {
+func (s *WebhookService) GetEventStream(ctx context.Context, orderId string) (chan *models.Event, chan bool, chan error) {
 	log.Printf("in GetEventStream\n")
 	eventsCh := make(chan *models.Event)
 	doneCh := make(chan bool)
@@ -76,6 +77,8 @@ func (s *WebhookService) GetEventStream(orderId string) (chan *models.Event, cha
 			case <-es.doneCh:
 				doneCh <- true
 				return
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
@@ -117,39 +120,166 @@ func (es *EventStream) Stream() {
 	log.Printf("in Stream\n")
 
 	// check if we can stream all data from db
-	if es.order.IsFinal && isReadyForStream(es.order.Status, es.events) {
-		sort.Slice(es.events, func(i, j int) bool {
-			return es.events[i].UpdateAt.Before(es.events[j].UpdateAt)
-		})
-		// set last event as "final"
-		es.events[len(es.events)-1].IsFinal = true
-
+	if es.order.IsFinal && isReadyForFinalStream(es.events) {
 		for _, ev := range es.events {
 			es.eventCh <- ev
 		}
 		es.doneCh <- true
 		return
 	}
-	es.isActive = true
-	// if not we need subscribe to receive events
-	fmt.Printf("subscribe %s %s\n", es.clientID, es.order.ID)
+
+	// check if we have initial event
+	orderCreatedEvent := searchEventByStatus(es.events, models.OrderCreatedStatus)
+	if orderCreatedEvent != nil {
+		es.isActive = true
+	}
+	// sent event that ready
+	eventResolver := eventResolver{events: es.events}
+	eventForStream, _ := eventResolver.resolve()
+	for _, e := range eventForStream {
+		es.eventCh <- e
+	}
+
+	// subscribe
 	queueCh := es.broker.Subscribe(es.clientID, es.order.ID)
 	for queueEvent := range queueCh {
-		es.eventCh <- queueEvent
-		if queueEvent.OrderStatus == models.DoneStatus {
+
+		// we receive initial event
+		if queueEvent.OrderStatus == models.OrderCreatedStatus {
+			es.isActive = true
+		}
+		eventResolver.appendEvent(queueEvent)
+		eventForStream, done := eventResolver.resolve()
+		for _, e := range eventForStream {
+			es.eventCh <- e
+		}
+		if done {
 			es.doneCh <- true
 			return
 		}
 	}
 }
 
+type eventResolver struct {
+	lastSendedEvent string
+	events          []*models.Event
+}
+
+func (er *eventResolver) appendEvent(event *models.Event) {
+	isNew := true
+	for i, e := range er.events {
+		if e.EventID == event.EventID {
+			er.events[i] = event
+			isNew = false
+		}
+	}
+	if isNew {
+		er.events = append(er.events, event)
+	}
+}
+
+func (er *eventResolver) resolve() ([]*models.Event, bool) {
+	eventForSending := make([]*models.Event, 0)
+
+	if len(er.events) == 0 {
+		return []*models.Event{}, false
+	}
+	// we have final event and min amount of events
+	if isReadyForFinalStream(er.events) {
+		var index int
+		if er.lastSendedEvent != "" {
+			index = searchStatusIndex(er.events, er.lastSendedEvent)
+			eventForSending = append(eventForSending, er.events[index+1:]...)
+			return eventForSending, true
+		} else {
+			eventForSending = append(eventForSending, er.events...)
+			return eventForSending, true
+		}
+	}
+
+	sort.Slice(er.events, func(i, j int) bool {
+		return er.events[i].UpdateAt.Before(er.events[j].UpdateAt)
+	})
+
+	initialEvent := searchEventByStatus(er.events, models.OrderCreatedStatus)
+	if initialEvent == nil {
+		return []*models.Event{}, false
+	}
+
+	eventForSending = append(eventForSending, initialEvent)
+
+	if len(er.events) == 1 {
+		if er.lastSendedEvent == "" {
+			er.lastSendedEvent = eventForSending[len(eventForSending)-1].OrderStatus
+			return eventForSending, false
+		} else {
+			return []*models.Event{}, false
+		}
+	}
+
+	for i := 1; i < len(er.events); i++ {
+		if models.StatusPriority[er.events[i].OrderStatus]-models.StatusPriority[er.events[i-1].OrderStatus] == 1 {
+			eventForSending = append(eventForSending, er.events[i])
+		}
+	}
+
+	if er.lastSendedEvent != "" {
+		i := searchStatusIndex(eventForSending, er.lastSendedEvent)
+		er.lastSendedEvent = eventForSending[len(eventForSending)-1].OrderStatus
+		return eventForSending[i+1:], false
+	}
+	er.lastSendedEvent = eventForSending[len(eventForSending)-1].OrderStatus
+	return eventForSending, false
+}
+
 var statusMinEventCount = map[string]int{
-	models.FailedStatus: 1,
-	models.ReturnStatus: 1,
+	models.FailedStatus: 2,
+	models.ReturnStatus: 2,
 	models.DoneStatus:   4,
 	models.RefundStatus: 5,
 }
 
-func isReadyForStream(orderStatus string, events []*models.Event) bool {
-	return len(events) == statusMinEventCount[orderStatus]
+// check if we have final event and min event amount by type
+func isReadyForFinalStream(events []*models.Event) bool {
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].UpdateAt.Before(events[j].UpdateAt)
+	})
+	if len(events) < 2 {
+		return false
+	}
+
+	finalEvent := searchFinalEvent(events)
+	if finalEvent == nil {
+		return false
+	}
+
+	lastEvent := events[len(events)-1]
+	return len(events) >= statusMinEventCount[lastEvent.OrderStatus]
+}
+
+func searchEventByStatus(events []*models.Event, status string) *models.Event {
+	for _, event := range events {
+		if event.OrderStatus == status {
+			return event
+		}
+	}
+	return nil
+}
+
+func searchFinalEvent(events []*models.Event) *models.Event {
+	for _, e := range events {
+		if e.IsFinal {
+			return e
+		}
+	}
+	return nil
+}
+
+func searchStatusIndex(events []*models.Event, status string) int {
+	for i, e := range events {
+		if e.OrderStatus == status {
+			return i
+		}
+	}
+	return 0
 }

@@ -15,13 +15,13 @@ const (
 )
 
 var StatusPriority = map[string]int{
-	OrderCreatedStatus: 0,
-	PendingStatus:      1,
-	ConfirmedStatus:    2,
-	ReturnStatus:       3,
-	FailedStatus:       4,
-	DoneStatus:         5,
-	RefundStatus:       6,
+	OrderCreatedStatus: 1,
+	PendingStatus:      2,
+	ConfirmedStatus:    3,
+	ReturnStatus:       4,
+	FailedStatus:       5,
+	DoneStatus:         6,
+	RefundStatus:       7,
 }
 
 type Order struct {

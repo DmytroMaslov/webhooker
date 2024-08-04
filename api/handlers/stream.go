@@ -23,9 +23,7 @@ func (h *Handlers) StreamEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
-
-	eventCh, done, errCh := h.stream.GetEventStream(orderId)
+	eventCh, done, errCh := h.stream.GetEventStream(r.Context(), orderId)
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -46,10 +44,6 @@ func (h *Handlers) StreamEvents(w http.ResponseWriter, r *http.Request) {
 		case err := <-errCh:
 			log.Printf("(!) StreamEvents. failed to get events stream, err: %s\n", err.Error())
 			http.Error(w, "failed to get events stream", http.StatusInternalServerError)
-			return
-		case <-ctx.Done():
-			// TODO: stop event stream if user close conn
-			log.Printf("(!) StreamEvents. close connection by client\n")
 			return
 		}
 	}
