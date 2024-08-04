@@ -16,3 +16,6 @@ down-env:
 
 test:
 	go test -v -cover ./...
+
+generateMock:
+	go generate -v -run="mockgen" ./...
