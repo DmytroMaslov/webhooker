@@ -8,11 +8,12 @@ CREATE TABLE Orders (
     UpdateAt TIMESTAMP NOT NULL
 );
 -- Create Events table
-CREATE TABLE JustPayEvents (
+CREATE TABLE Events (
     EventID VARCHAR(37) PRIMARY KEY NOT NULL,
     OrderID VARCHAR(37) NOT NULL,
     UserID VARCHAR(37) NOT NULL,
     OrderStatus VARCHAR(50) NOT NULL,
+    IsFinal BOOLEAN NOT NULL,
     CreateAt TIMESTAMP NOT NULL,
     UpdateAt TIMESTAMP NOT NULL
 );

@@ -14,6 +14,7 @@ type EventRow struct {
 	OrderID     string
 	UserID      string
 	OrderStatus string
+	IsFinal     bool
 	CreateAt    time.Time
 	UpdateAt    time.Time
 }
@@ -24,6 +25,7 @@ func (e *EventRow) EventRowToEvent() *models.Event {
 		OrderID:     e.OrderID,
 		UserID:      e.UserID,
 		OrderStatus: e.OrderStatus,
+		IsFinal:     e.IsFinal,
 		CreateAt:    e.CreateAt,
 		UpdateAt:    e.UpdateAt,
 	}
@@ -34,6 +36,7 @@ func (e *EventRow) EventRowFromEvent(event *models.Event) {
 	e.OrderID = event.OrderID
 	e.UserID = event.UserID
 	e.OrderStatus = event.OrderStatus
+	e.IsFinal = event.IsFinal
 	e.CreateAt = event.CreateAt
 	e.UpdateAt = event.UpdateAt
 }
@@ -56,9 +59,9 @@ func (e *EventStorage) SaveEvent(event *models.Event) error {
 	var eventRow EventRow
 	eventRow.EventRowFromEvent(event)
 
-	query := "INSERT INTO JustPayEvents(EventID, OrderID, UserID, OrderStatus, CreateAt, UpdateAt) VALUES($1, $2, $3, $4, $5, $6)"
+	query := "INSERT INTO Events(EventID, OrderID, UserID, OrderStatus, IsFinal, CreateAt, UpdateAt) VALUES($1, $2, $3, $4, $5, $6)"
 
-	_, err := e.db.Exec(query, eventRow.EventID, eventRow.OrderID, eventRow.UserID, eventRow.OrderStatus, eventRow.CreateAt, eventRow.UpdateAt)
+	_, err := e.db.Exec(query, eventRow.EventID, eventRow.OrderID, eventRow.UserID, eventRow.OrderStatus, eventRow.IsFinal, eventRow.CreateAt, eventRow.UpdateAt)
 	if err != nil {
 		if err, ok := err.(*pq.Error); ok {
 			if err.Code.Name() == "unique_violation" {
@@ -71,8 +74,8 @@ func (e *EventStorage) SaveEvent(event *models.Event) error {
 }
 
 func (e *EventStorage) GetEvents(filter *models.EventsFilter) ([]*models.Event, error) {
-	query := `SELECT EventID, OrderID, UserID, OrderStatus, CreateAt, UpdateAt 
-	FROM JustPayEvents`
+	query := `SELECT EventID, OrderID, UserID, OrderStatus, IsFinal, CreateAt, UpdateAt 
+	FROM Events`
 
 	if filter.OrderID != nil {
 		whereStmt := fmt.Sprintf("OrderID = '%s'", *filter.OrderID)
@@ -93,7 +96,7 @@ func (e *EventStorage) GetEvents(filter *models.EventsFilter) ([]*models.Event, 
 
 	for rows.Next() {
 		var eventRow EventRow
-		err := rows.Scan(&eventRow.EventID, &eventRow.OrderID, &eventRow.UserID, &eventRow.OrderStatus, &eventRow.CreateAt, &eventRow.UpdateAt)
+		err := rows.Scan(&eventRow.EventID, &eventRow.OrderID, &eventRow.UserID, &eventRow.OrderStatus, &eventRow.IsFinal, &eventRow.CreateAt, &eventRow.UpdateAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan event row %w", err)
 		}
