@@ -50,11 +50,11 @@ func (a *App) Run() {
 	exit := make(chan os.Signal, 1)
 	signal.Notify(exit, syscall.SIGINT, syscall.SIGTERM)
 
+	// shout down logic
 	<-exit
 
 	broker.Close()
 
-	// shout down logic
 	err = server.Shutdown(context.Background())
 	if err != nil {
 		log.Printf("failed to stop server, err: %s", err)
@@ -66,6 +66,4 @@ func (a *App) Run() {
 	if err != nil {
 		log.Printf("failed to close db connection, err: %s", err)
 	}
-
-	log.Printf("See you\n")
 }

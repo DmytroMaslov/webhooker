@@ -10,13 +10,6 @@ import (
 	"webhooker/internal/storage/posgres"
 )
 
-const (
-	defaultLimit     = 10
-	defaultOffset    = 0
-	defaultSortBy    = models.CreateAt
-	defaultSortOrder = models.SortDesc
-)
-
 type WebhookService struct {
 	eventStorage *posgres.EventStorage
 	orderStorage api.OrderStorage

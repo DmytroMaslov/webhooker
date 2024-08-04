@@ -6,6 +6,13 @@ import (
 	"webhooker/internal/storage/api"
 )
 
+const (
+	defaultLimit     = 10
+	defaultOffset    = 0
+	defaultSortBy    = models.CreateAt
+	defaultSortOrder = models.SortDesc
+)
+
 type OrderService struct {
 	orderStorage api.OrderStorage
 }
