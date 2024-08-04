@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"webhooker/config"
 	"webhooker/internal/services/models"
 )
 
@@ -38,17 +37,13 @@ func (o *OrderRow) OrderRowFromOrder(order *models.Order) {
 }
 
 type OrderStorage struct {
-	*PgClient
+	db *PgClient
 }
 
-func NewOrderStorage(cfg *config.PgCredentials) (*OrderStorage, error) {
-	client, err := NewPgClient(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create order storage, err: %w", err)
-	}
+func NewOrderStorage(client *PgClient) *OrderStorage {
 	return &OrderStorage{
-		client,
-	}, nil
+		db: client,
+	}
 }
 
 func (o *OrderStorage) GetOrder(id string) (*models.Order, error) {
@@ -56,7 +51,7 @@ func (o *OrderStorage) GetOrder(id string) (*models.Order, error) {
 	FROM Orders
 	WHERE OrderID = $1`
 
-	rows, err := o.db.Query(query, id)
+	rows, err := o.db.client.Query(query, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query order, err: %w", err)
 	}
@@ -82,7 +77,7 @@ func (o *OrderStorage) SaveOrder(order *models.Order) error {
 	var orderRow OrderRow
 	orderRow.OrderRowFromOrder(order)
 
-	_, err := o.db.Exec(query, orderRow.OrderID, orderRow.UserID, orderRow.OrderStatus, orderRow.IsFinal, orderRow.CreateAt, orderRow.UpdateAt)
+	_, err := o.db.client.Exec(query, orderRow.OrderID, orderRow.UserID, orderRow.OrderStatus, orderRow.IsFinal, orderRow.CreateAt, orderRow.UpdateAt)
 	if err != nil {
 		return fmt.Errorf("failed to insert order, err: %w", err)
 	}
@@ -98,7 +93,7 @@ func (o *OrderStorage) UpdateOrder(order *models.Order) error {
 	var orderRow OrderRow
 	orderRow.OrderRowFromOrder(order)
 
-	_, err := o.db.Exec(query, orderRow.OrderID, orderRow.UserID, orderRow.OrderStatus, orderRow.IsFinal, orderRow.CreateAt, orderRow.UpdateAt)
+	_, err := o.db.client.Exec(query, orderRow.OrderID, orderRow.UserID, orderRow.OrderStatus, orderRow.IsFinal, orderRow.CreateAt, orderRow.UpdateAt)
 	if err != nil {
 		return fmt.Errorf("failed to exec update order, err: %w", err)
 	}
@@ -163,7 +158,7 @@ func (o *OrderStorage) GetOrders(filter *models.OrderFilter) ([]*models.Order, e
 		query = fmt.Sprintf("%s %s", query, offsetStmt)
 	}
 
-	rows, err := o.db.Query(query)
+	rows, err := o.db.client.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query %s, err: %w", query, err)
 	}

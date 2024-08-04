@@ -23,14 +23,13 @@ type App struct {
 func (a *App) Run() {
 	log.Printf("App started\n")
 
-	eventStorage, err := posgres.NewEventStorage(&a.Config.Postgress)
+	dbClient, err := posgres.NewPgClient(&a.Config.Postgress)
 	if err != nil {
-		log.Fatal("failed to create event storage: %w", err)
+		log.Fatal("failed to create db client %w", err)
 	}
-	orderStorage, err := posgres.NewOrderStorage(&a.Config.Postgress)
-	if err != nil {
-		log.Fatal("failed to create event storage: %w", err)
-	}
+
+	eventStorage := posgres.NewEventStorage(dbClient)
+	orderStorage := posgres.NewOrderStorage(dbClient)
 
 	broker := inmemory.NewBroker()
 
@@ -63,14 +62,9 @@ func (a *App) Run() {
 
 	<-delay.GracefulExit()
 
-	err = eventStorage.Close()
+	err = dbClient.Close()
 	if err != nil {
-		log.Printf("failed to close connection, err: %s", err)
-	}
-
-	err = orderStorage.Close()
-	if err != nil {
-		log.Printf("failed to close connection, err: %s", err)
+		log.Printf("failed to close db connection, err: %s", err)
 	}
 
 	log.Printf("See you\n")

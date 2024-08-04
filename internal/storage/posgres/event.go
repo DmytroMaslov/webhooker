@@ -3,7 +3,6 @@ package posgres
 import (
 	"fmt"
 	"time"
-	"webhooker/config"
 	"webhooker/internal/services/models"
 
 	"github.com/lib/pq"
@@ -42,17 +41,13 @@ func (e *EventRow) EventRowFromEvent(event *models.Event) {
 }
 
 type EventStorage struct {
-	*PgClient
+	db *PgClient
 }
 
-func NewEventStorage(cfg *config.PgCredentials) (*EventStorage, error) {
-	client, err := NewPgClient(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create event storage, err: %w", err)
-	}
+func NewEventStorage(client *PgClient) *EventStorage {
 	return &EventStorage{
-		client,
-	}, nil
+		db: client,
+	}
 }
 
 func (e *EventStorage) SaveEvent(event *models.Event) error {
@@ -61,7 +56,7 @@ func (e *EventStorage) SaveEvent(event *models.Event) error {
 
 	query := "INSERT INTO Events(EventID, OrderID, UserID, OrderStatus, IsFinal, CreateAt, UpdateAt) VALUES($1, $2, $3, $4, $5, $6, $7)"
 
-	_, err := e.db.Exec(query, eventRow.EventID, eventRow.OrderID, eventRow.UserID, eventRow.OrderStatus, eventRow.IsFinal, eventRow.CreateAt, eventRow.UpdateAt)
+	_, err := e.db.client.Exec(query, eventRow.EventID, eventRow.OrderID, eventRow.UserID, eventRow.OrderStatus, eventRow.IsFinal, eventRow.CreateAt, eventRow.UpdateAt)
 	if err != nil {
 		if err, ok := err.(*pq.Error); ok {
 			if err.Code.Name() == "unique_violation" {
@@ -81,7 +76,7 @@ func (e *EventStorage) UpdateEvent(event *models.Event) error {
 	var eventRow EventRow
 	eventRow.EventRowFromEvent(event)
 
-	_, err := e.db.Exec(query, eventRow.EventID, eventRow.OrderID, eventRow.UserID, eventRow.OrderStatus, eventRow.IsFinal, eventRow.CreateAt, eventRow.UpdateAt)
+	_, err := e.db.client.Exec(query, eventRow.EventID, eventRow.OrderID, eventRow.UserID, eventRow.OrderStatus, eventRow.IsFinal, eventRow.CreateAt, eventRow.UpdateAt)
 	if err != nil {
 		return fmt.Errorf("failed to update event, err: %w", err)
 	}
@@ -102,7 +97,7 @@ func (e *EventStorage) GetEvents(filter *models.EventsFilter) ([]*models.Event, 
 		query = addWhere(query, whereStmt)
 	}
 
-	rows, err := e.db.Query(query)
+	rows, err := e.db.client.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query events %w", err)
 	}

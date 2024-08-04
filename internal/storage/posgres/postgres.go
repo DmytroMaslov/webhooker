@@ -14,7 +14,7 @@ const (
 )
 
 type PgClient struct {
-	db *sql.DB
+	client *sql.DB
 }
 
 func NewPgClient(cfg *config.PgCredentials) (*PgClient, error) {
@@ -29,11 +29,10 @@ func NewPgClient(cfg *config.PgCredentials) (*PgClient, error) {
 	}
 
 	return &PgClient{
-		db: db,
+		client: db,
 	}, nil
-
 }
 
 func (c *PgClient) Close() error {
-	return c.db.Close()
+	return c.client.Close()
 }
