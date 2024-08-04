@@ -13,3 +13,6 @@ up-env:
 
 down-env:
 	docker compose down
+
+test:
+	go test -v ./...
