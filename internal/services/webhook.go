@@ -154,6 +154,7 @@ func (s *WebhookService) process(event *models.Event, order *models.Order) error
 }
 
 func (s *WebhookService) processWithDelay(event *models.Event) {
+	e := *event // to avoid data race
 	fn := func() {
 		order, err := s.orderStorage.GetOrder(event.OrderID)
 		if err != nil {
@@ -182,5 +183,5 @@ func (s *WebhookService) processWithDelay(event *models.Event) {
 		log.Printf("change order_id: %s and event_id: %s to final", event.EventID, event.OrderID)
 	}
 
-	go s.delay.AddJobFn(event.OrderID, fn, models.CooldownTime)
+	go s.delay.AddJobFn(e.OrderID, fn, models.CooldownTime)
 }
