@@ -19,7 +19,7 @@ CREATE TABLE Events (
 );
 
 -- create index
-CREATE INDEX just_pay_events_orderid ON JustPayEvents (OrderID);
+CREATE INDEX events_orderid ON Events (OrderID);
 
 -- insert test orders
 INSERT INTO Orders (OrderID, UserID, OrderStatus, IsFinal, CreateAt, UpdateAt)
