@@ -77,10 +77,9 @@ func (s *WebhookService) SaveEvent(event *models.Event) error {
 		}
 
 		// check if order already has done status
-		for _, e := range events {
-			if e.OrderStatus == models.DoneStatus {
-				return models.ErrAfterFinal
-			}
+		doneEvent := searchEventByStatus(events, models.DoneStatus)
+		if doneEvent != nil {
+			return models.ErrAfterFinal
 		}
 		event.IsFinal = true
 	}
