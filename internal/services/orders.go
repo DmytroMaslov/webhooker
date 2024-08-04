@@ -3,14 +3,14 @@ package services
 import (
 	"errors"
 	"webhooker/internal/services/models"
-	"webhooker/internal/storage/posgres"
+	"webhooker/internal/storage/api"
 )
 
 type OrderService struct {
-	orderStorage *posgres.OrderStorage
+	orderStorage api.OrderStorage
 }
 
-func NewOrderService(order *posgres.OrderStorage) *OrderService {
+func NewOrderService(order api.OrderStorage) *OrderService {
 	return &OrderService{
 		orderStorage: order,
 	}

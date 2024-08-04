@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 	"webhooker/internal/services/models"
+	"webhooker/internal/storage/api"
 )
 
 type OrderRow struct {
@@ -40,7 +41,7 @@ type OrderStorage struct {
 	db *PgClient
 }
 
-func NewOrderStorage(client *PgClient) *OrderStorage {
+func NewOrderStorage(client *PgClient) api.OrderStorage {
 	return &OrderStorage{
 		db: client,
 	}

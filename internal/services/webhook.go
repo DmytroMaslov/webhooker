@@ -6,6 +6,7 @@ import (
 	"webhooker/internal/queue/inmemory"
 	"webhooker/internal/schedule/delay"
 	"webhooker/internal/services/models"
+	"webhooker/internal/storage/api"
 	"webhooker/internal/storage/posgres"
 )
 
@@ -18,12 +19,12 @@ const (
 
 type WebhookService struct {
 	eventStorage *posgres.EventStorage
-	orderStorage *posgres.OrderStorage
+	orderStorage api.OrderStorage
 	broker       *inmemory.Broker
 	delay        *delay.Delay
 }
 
-func NewWebhookService(event *posgres.EventStorage, order *posgres.OrderStorage, broker *inmemory.Broker, delay *delay.Delay) *WebhookService {
+func NewWebhookService(event *posgres.EventStorage, order api.OrderStorage, broker *inmemory.Broker, delay *delay.Delay) *WebhookService {
 	return &WebhookService{
 		eventStorage: event,
 		orderStorage: order,
