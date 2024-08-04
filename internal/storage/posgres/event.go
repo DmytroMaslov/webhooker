@@ -59,7 +59,7 @@ func (e *EventStorage) SaveEvent(event *models.Event) error {
 	var eventRow EventRow
 	eventRow.EventRowFromEvent(event)
 
-	query := "INSERT INTO Events(EventID, OrderID, UserID, OrderStatus, IsFinal, CreateAt, UpdateAt) VALUES($1, $2, $3, $4, $5, $6)"
+	query := "INSERT INTO Events(EventID, OrderID, UserID, OrderStatus, IsFinal, CreateAt, UpdateAt) VALUES($1, $2, $3, $4, $5, $6, $7)"
 
 	_, err := e.db.Exec(query, eventRow.EventID, eventRow.OrderID, eventRow.UserID, eventRow.OrderStatus, eventRow.IsFinal, eventRow.CreateAt, eventRow.UpdateAt)
 	if err != nil {
@@ -69,6 +69,21 @@ func (e *EventStorage) SaveEvent(event *models.Event) error {
 			}
 		}
 		return fmt.Errorf("failed to save event, err: %w", err)
+	}
+	return nil
+}
+
+func (e *EventStorage) UpdateEvent(event *models.Event) error {
+	query := `UPDATE Events
+	SET EventID = $1, OrderID = $2, UserID = $3, OrderStatus = $4, IsFinal = $5, CreateAt = $6, UpdateAt = $7
+	WHERE EventID = $1`
+
+	var eventRow EventRow
+	eventRow.EventRowFromEvent(event)
+
+	_, err := e.db.Exec(query, eventRow.EventID, eventRow.OrderID, eventRow.UserID, eventRow.OrderStatus, eventRow.IsFinal, eventRow.CreateAt, eventRow.UpdateAt)
+	if err != nil {
+		return fmt.Errorf("failed to update event, err: %w", err)
 	}
 	return nil
 }
