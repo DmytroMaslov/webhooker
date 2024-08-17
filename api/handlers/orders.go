@@ -32,6 +32,12 @@ func orderToOrderResp(order *models.Order) OrderResp {
 }
 
 func (h *Handlers) GetOrders(w http.ResponseWriter, r *http.Request) {
+	//TODO: only for test
+	statusStrPanic := r.URL.Query().Get("status")
+	if statusStrPanic == "panic" {
+		panic("panic status")
+	}
+
 	// status
 	statusStr := r.URL.Query().Get("status")
 	var statuses []string

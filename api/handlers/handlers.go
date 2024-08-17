@@ -22,10 +22,12 @@ func NewHandler(stream *services.WebhookService, order *services.OrderService) *
 	}
 }
 
-func (h *Handlers) GetHandlers() *http.ServeMux {
+func (h *Handlers) GetHandlers() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /webhooks/payments/orders", h.ReceiveWebhook)
-	mux.HandleFunc("GET /orders", h.GetOrders)
+	mux.Handle("GET /orders", &TimeCounterMiddleware{h.GetOrders}) // count time only for one endpoint
 	mux.HandleFunc("GET /orders/{order_id}/events", h.StreamEvents)
-	return mux
+
+	recoverMux := NewRecoverMiddleware(mux) // recover all endpoints
+	return recoverMux
 }

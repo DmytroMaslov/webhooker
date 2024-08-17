@@ -9,11 +9,11 @@ import (
 
 type Server struct {
 	port   int
-	routes *http.ServeMux
+	routes http.Handler
 	server *http.Server
 }
 
-func NewHttpServer(port int, routes *http.ServeMux) *Server {
+func NewHttpServer(port int, routes http.Handler) *Server {
 	return &Server{
 		routes: routes,
 		port:   port,
